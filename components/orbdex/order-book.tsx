@@ -1,6 +1,9 @@
 "use client"
 import { useEffect, useRef, useState, useMemo } from "react"
 
+const SYMBOLS = ["PENGUUSDT"
+];
+
 type Row = { price: number; size: number; total: number }
 type Trade = { price: number; qty: number; side: "buy" | "sell"; time: number }
 
@@ -101,7 +104,8 @@ function DepthChart({ asks, bids }: { asks: { price: number; size: number }[]; b
   );
 }
 
-export function OrderBook({ symbol = "BTCUSDT" }: { symbol?: string }) {
+export function OrderBook() {
+  const [symbol, setSymbol] = useState<string>("PENGUUSDT")
   const [bids, setBids] = useState<Row[]>([])
   const [asks, setAsks] = useState<Row[]>([])
   const [activeTab, setActiveTab] = useState<"orderbook" | "trades" | "depth">("orderbook")
@@ -229,9 +233,18 @@ export function OrderBook({ symbol = "BTCUSDT" }: { symbol?: string }) {
   const maxBidTotal = useMemo(() => Math.max(1, ...bids.map((r) => r.total)), [bids])
 
   return (
-  <div className="grid h-full min-h-[320px] min-w-0 grid-rows-[auto_1fr_auto] overflow-hidden font-sans leading-tight text-[8px] sm:text-[9px] md:text-[10px] bg-white dark:bg-[#0F0F0F] border border-zinc-200 dark:border-zinc-800 rounded-sm p-2">
-      {/* Tabs */}
+    <div className="grid h-full min-h-[320px] min-w-0 grid-rows-[auto_1fr_auto] overflow-hidden font-sans leading-tight text-[8px] sm:text-[9px] md:text-[10px] bg-white dark:bg-[#0F0F0F] border border-zinc-200 dark:border-zinc-800 rounded-sm p-2">
+      {/* Symbol Selector */}
       <div className="flex items-center justify-between mb-2">
+        <select
+          value={symbol}
+          onChange={e => setSymbol(e.target.value)}
+          className="px-2 py-1 rounded bg-[#232323] text-white text-xs font-semibold"
+        >
+          {SYMBOLS.map(s => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
         <div className="flex gap-1 bg-[#232323] rounded overflow-hidden p-1">
           {['Order book', 'Trades', 'Depth'].map((t) => {
             const tabKey = t.toLowerCase().replace(' ', '') as 'orderbook' | 'trades' | 'depth'
