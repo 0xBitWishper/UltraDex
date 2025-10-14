@@ -8,37 +8,58 @@ type Ticker = {
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
+// Fungsi batching untuk fetch semua symbols
+export async function fetchBinanceBatch(symbols: string[]): Promise<any[]> {
+  const batchSize = 20;
+  const batches = [];
+  for (let i = 0; i < symbols.length; i += batchSize) {
+    batches.push(symbols.slice(i, i + batchSize));
+  }
+  const results = await Promise.all(
+    batches.map(async (batch) => {
+      const url = `/api/binance?symbols=${encodeURIComponent(JSON.stringify(batch))}`;
+      const res = await fetch(url);
+      return res.ok ? await res.json() : [];
+    })
+  );
+  // Gabungkan semua hasil batch menjadi satu array
+  return results.flat();
+}
+
+// const PAIRS = [
+//   // Solana ecosystem tokens requested by user
+//   "SOLUSDT",    // SOL (native)
+//   "USDTUSDT",   // USDT (Solana)
+//   "USDCUSDT",   // USDC (Solana)
+//   "BONKUSDT",   // BONK
+//   "JUPUSDT",    // JUP (Jupiter)
+//   "RAYUSDT",    // RAY (Raydium)
+//   "MSOLUSDT",   // mSOL (Marinade Staked SOL)
+//   "LDOUSDT",    // LDO (Lido)
+//   "WETHUSDT",   // WETH (Wrapped ETH on Solana)
+//   "WBTCUSDT",   // WBTC (Wrapped BTC on Solana)
+//   "CRVUSDT",    // CRV (Curve DAO, versi SPL)
+//   "GRTUSDT",    // GRT (The Graph)
+//   "PYTHUSDT",   // PYTH (Pyth Network)
+//   "JTOUSDT",    // JTO (Jito Token)
+//   "SAROSUSDT",  // SAROS
+//   "WIFUSDT",    // WIF (Dogwifhat)
+//   "2ZUSDT",     // DoubleZero (2Z)
+//   "KMNOUSDT",   // Kamino (KMNO)
+//   "MEWUSDT",    // MEW (Cat in a Dogs World)
+//   "BOMEUSDT",   // BOME (Book Of Meme)
+//   "POPCATUSDT", // POPCAT
+//   "GOATUSDT",   // GOAT (Goatseus Maximus)
+//   "TRUMPUSDT",  // TRUMP (Official Trump token)
+//   "PENGUUSDT",  // PENGU (Pudgy Penguins token)
+//   "ZBCNUSDT",   // ZBCN (Zebec Network)
+//   "WUSDT",      // W (Wormhole token)
+//   "USELESSUSDT",// USELESS (Useless Coin)
+//   "SPX6900USDT" // SPX6900
+// ]
 
 const PAIRS = [
-  // Solana ecosystem tokens requested by user
-  "SOLUSDT",    // SOL (native)
-  "USDTUSDT",   // USDT (Solana)
-  "USDCUSDT",   // USDC (Solana)
-  "BONKUSDT",   // BONK
-  "JUPUSDT",    // JUP (Jupiter)
-  "RAYUSDT",    // RAY (Raydium)
-  "MSOLUSDT",   // mSOL (Marinade Staked SOL)
-  "LDOUSDT",    // LDO (Lido)
-  "WETHUSDT",   // WETH (Wrapped ETH on Solana)
-  "WBTCUSDT",   // WBTC (Wrapped BTC on Solana)
-  "CRVUSDT",    // CRV (Curve DAO, versi SPL)
-  "GRTUSDT",    // GRT (The Graph)
-  "PYTHUSDT",   // PYTH (Pyth Network)
-  "JTOUSDT",    // JTO (Jito Token)
-  "SAROSUSDT",  // SAROS
-  "WIFUSDT",    // WIF (Dogwifhat)
-  "2ZUSDT",     // DoubleZero (2Z)
-  "KMNOUSDT",   // Kamino (KMNO)
-  "MEWUSDT",    // MEW (Cat in a Dogs World)
-  "BOMEUSDT",   // BOME (Book Of Meme)
-  "POPCATUSDT", // POPCAT
-  "GOATUSDT",   // GOAT (Goatseus Maximus)
-  "TRUMPUSDT",  // TRUMP (Official Trump token)
-  "PENGUUSDT",  // PENGU (Pudgy Penguins token)
-  "ZBCNUSDT",   // ZBCN (Zebec Network)
-  "WUSDT",      // W (Wormhole token)
-  "USELESSUSDT",// USELESS (Useless Coin)
-  "SPX6900USDT" // SPX6900
+  "SOLUSDT"
 ]
 
 export function BottomTicker() {
