@@ -96,6 +96,25 @@ type OrderFormProps = {
 
 const OrderForm: React.FC<OrderFormProps> = ({ symbol, market }) => {
   const [showConnectPopup, setShowConnectPopup] = useState(false);
+  // Import handleConnect dari header
+  const { useIsMobile } = require('@/hooks/use-mobile');
+  const isMobile = useIsMobile();
+  const handleConnect = async () => {
+    if (window?.solana && window.solana.isPhantom) {
+      try {
+        const resp = isMobile
+          ? await window.solana.connect()
+          : await window.solana.connect({ onlyIfTrusted: false });
+        setSolAddress(resp.publicKey.toString());
+      } catch (err) {
+        // error handling
+      }
+    } else {
+      if (isMobile) {
+        window.location.href = 'https://phantom.app/ultra-connect?app_url=https://app.ultradex.fun';
+      }
+    }
+  }
   // ...existing code...
   const [showTPSL, setShowTPSL] = useState(false);
   const [tab, setTab] = useState<'market' | 'limit' | 'advance'>('market');
@@ -109,7 +128,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ symbol, market }) => {
   const [reduceOnly, setReduceOnly] = useState(false);
   const [showWaitlist, setShowWaitlist] = useState(false);
   const [solAddress, setSolAddress] = useState<string | null>(null);
-  const [solBalance, setSolBalance] = useState<string>("-");
+  const [solBalance, setSolBalance] = useState<string>("loading");
   const isWalletConnected = !!solAddress;
 
   // Fetch Solana address from Phantom (window.solana)
@@ -128,6 +147,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ symbol, market }) => {
   useEffect(() => {
     async function fetchBalance() {
       if (solAddress) {
+        setSolBalance("loading");
         try {
           const resp = await fetch("https://api.mainnet-beta.solana.com", {
             method: "POST",
@@ -250,9 +270,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ symbol, market }) => {
               className={`w-full py-2 rounded font-semibold transition-all duration-300 border ${solAddress ? 'bg-[#232323] text-white hover:bg-[#181818] border-transparent' : 'bg-transparent text-white border-[#00ffb3]'}`}
               onClick={() => {
                 if (!solAddress) {
-                  if (window?.solana?.connect) {
-                    window.solana.connect().catch(() => {});
-                  }
+                  handleConnect();
                   return;
                 }
                 setShowWaitlist(true);
@@ -325,9 +343,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ symbol, market }) => {
               className={`w-full py-2 rounded font-semibold transition-all duration-300 border ${solAddress ? 'bg-[#232323] text-white hover:bg-[#181818] border-transparent' : 'bg-transparent text-white border-[#00ffb3]'}`}
               onClick={() => {
                 if (!solAddress) {
-                  if (window?.solana?.connect) {
-                    window.solana.connect().catch(() => {});
-                  }
+                  handleConnect();
                   return;
                 }
                 setShowWaitlist(true);
@@ -354,6 +370,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ symbol, market }) => {
         <div className="flex flex-col gap-1 text-xs">
           <div className="flex justify-between"><span>Solana Address</span><span>{solAddress ? solAddress.slice(0, 4) + '...' + solAddress.slice(-4) : '--'}</span></div>
           <div className="flex justify-between"><span>SOL Balance</span><span>{solBalance} SOL</span></div>
+          <div className="flex justify-between"><span>SOL Balance</span><span>{solBalance === "loading" ? <span className="animate-pulse text-gray-400">Loading...</span> : `${solBalance} SOL`}</span></div>
           <div className="flex justify-between"><span>Account Equity</span><span>--</span></div>
           <div className="flex justify-between"><span>Spot total value</span><span>--</span></div>
           <div className="flex justify-between"><span>Perp total value</span><span>--</span></div>

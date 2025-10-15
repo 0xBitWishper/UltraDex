@@ -105,10 +105,15 @@ function DepthChart({ asks, bids }: { asks: { price: number; size: number }[]; b
 }
 
 export function OrderBook() {
-  const [symbol, setSymbol] = useState<string>("PENGUUSDT")
+  const [symbol, setSymbol] = useState<string>("btcusdt")
   const [bids, setBids] = useState<Row[]>([])
   const [asks, setAsks] = useState<Row[]>([])
-  const [activeTab, setActiveTab] = useState<"orderbook" | "trades" | "depth">("orderbook")
+  const [activeTab, setActiveTab] = useState<"orderbook" | "trades" | "depth">(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('orderbookTab') as "orderbook" | "trades" | "depth") || "orderbook";
+    }
+    return "orderbook";
+  });
   const [trades, setTrades] = useState<Trade[]>([])
   const wsRef = useRef<WebSocket | null>(null)
 
@@ -241,7 +246,7 @@ export function OrderBook() {
           onChange={e => setSymbol(e.target.value)}
           className="px-2 py-1 rounded bg-[#232323] text-white text-xs font-semibold"
         >
-          {SYMBOLS.map(s => (
+          {["btcusdt", ...SYMBOLS].map(s => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
@@ -253,7 +258,13 @@ export function OrderBook() {
               <button
                 key={t}
                 className={`px-3 py-1 text-[10px] font-semibold rounded transition-all duration-150 ${isActive ? 'bg-[#181818] text-white' : 'bg-transparent text-gray-400'}`}
-                onClick={() => setActiveTab(tabKey)}
+                style={{ zIndex: 10, pointerEvents: 'auto' }}
+                onClick={() => {
+                  setActiveTab(tabKey);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('orderbookTab', tabKey);
+                  }
+                }}
               >
                 {t}
               </button>
@@ -352,33 +363,37 @@ export function OrderBook() {
             className="grid h-full px-3 min-w-0"
             style={{ gridTemplateRows: `repeat(${VISIBLE_ROWS}, minmax(0, 1fr))` }}
           >
-            {Array.from({ length: VISIBLE_ROWS }).map((_, i) => {
-              const t = trades[i]
-              const isEmpty = !t
-              const color = isEmpty
-                ? "var(--muted-foreground)"
-                : t.side === "buy"
-                  ? "var(--chart-2)"
-                  : "var(--destructive)"
-              return (
-                <div key={i} className="grid grid-cols-3 items-center min-w-0">
-                  <div className="opacity-60 truncate min-w-0 whitespace-nowrap">
-                    {isEmpty ? "-" : new Date(t.time).toLocaleTimeString([], { hour12: false })}
+            {trades.length === 0 ? (
+              <div className="col-span-3 text-center text-gray-400 py-4">No trades data available.</div>
+            ) : (
+              Array.from({ length: VISIBLE_ROWS }).map((_, i) => {
+                const t = trades[i]
+                const isEmpty = !t
+                const color = isEmpty
+                  ? "var(--muted-foreground)"
+                  : t.side === "buy"
+                    ? "var(--chart-2)"
+                    : "var(--destructive)"
+                return (
+                  <div key={i} className="grid grid-cols-3 items-center min-w-0">
+                    <div className="opacity-60 truncate min-w-0 whitespace-nowrap">
+                      {isEmpty ? "-" : new Date(t.time).toLocaleTimeString([], { hour12: false })}
+                    </div>
+                    <div
+                      className="text-right tabular-nums font-sans truncate min-w-0 whitespace-nowrap"
+                      style={{ color }}
+                    >
+                      {isEmpty ? "-" : t.price.toLocaleString()}
+                    </div>
+                    <div className="text-right opacity-80 tabular-nums truncate min-w-0 whitespace-nowrap"
+                      style={{ background: !isEmpty ? (t.side === "buy" ? `rgba(0, 201, 167, 0.5)` : `rgba(233, 79, 122, 0.5)`) : undefined, transition: 'background 0.3s' }}
+                    >
+                      {isEmpty ? "-" : t.qty.toLocaleString()}
+                    </div>
                   </div>
-                  <div
-                    className="text-right tabular-nums font-sans truncate min-w-0 whitespace-nowrap"
-                    style={{ color }}
-                  >
-                    {isEmpty ? "-" : t.price.toLocaleString()}
-                  </div>
-                  <div className="text-right opacity-80 tabular-nums truncate min-w-0 whitespace-nowrap"
-                    style={{ background: !isEmpty ? (t.side === "buy" ? `rgba(0, 201, 167, 0.5)` : `rgba(233, 79, 122, 0.5)`) : undefined, transition: 'background 0.3s' }}
-                  >
-                    {isEmpty ? "-" : t.qty.toLocaleString()}
-                  </div>
-                </div>
-              )
-            })}
+                )
+              })
+            )}
           </div>
         </div>
       ) : (

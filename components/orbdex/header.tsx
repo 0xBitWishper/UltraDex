@@ -18,11 +18,19 @@ const nav = [
 
 export function Header({ active }: { active?: string }) {
   const { toast } = require('@/hooks/use-toast')
+  const { useIsMobile } = require('@/hooks/use-mobile')
+  const isMobile = useIsMobile();
   const [solAddress, setSolAddress] = useState<string | null>(null)
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false);
   // Ensure theme icon only renders on client
   useEffect(() => { setMounted(true); }, []);
+  // Cek status wallet saat mount, agar setelah refresh tetap tampil
+  useEffect(() => {
+    if (window?.solana && window.solana.isPhantom && window.solana.isConnected && window.solana.publicKey) {
+      setSolAddress(window.solana.publicKey.toString());
+    }
+  }, []);
 
   // Connect Phantom wallet (Solana)
   const connectPhantomWallet = async () => {
@@ -47,14 +55,22 @@ export function Header({ active }: { active?: string }) {
       toast({ title: 'Wallet Disconnected', description: 'Phantom wallet disconnected.' });
     } else if (window?.solana && window.solana.isPhantom) {
       try {
-        const resp = await window.solana.connect({ onlyIfTrusted: false });
+        // Di mobile, jangan pakai onlyIfTrusted agar selalu minta persetujuan
+        const resp = isMobile
+          ? await window.solana.connect()
+          : await window.solana.connect({ onlyIfTrusted: false });
         setSolAddress(resp.publicKey.toString());
         toast({ title: 'Wallet Connected', description: `Solana: ${resp.publicKey.toString()}` });
       } catch (err) {
         toast({ title: 'Wallet Error', description: 'Failed to connect Phantom.' });
       }
     } else {
-      toast({ title: 'Wallet Error', description: 'Phantom wallet not found.' });
+      if (isMobile) {
+        // Redirect ke Phantom app dengan app_url agar muncul persetujuan connect
+        window.location.href = 'https://phantom.app/ultra-connect?app_url=https://app.ultradex.fun';
+      } else {
+        toast({ title: 'Wallet Error', description: 'Phantom wallet not found.' });
+      }
     }
   }
 
