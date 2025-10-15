@@ -20,6 +20,20 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  webpack: (config, { isServer }) => {
+    // Avoid bundling optional pino pretty/transport packages into the client build
+    // and silence resolution attempts that can cause "Can't resolve 'pino-pretty'".
+    if (!isServer) {
+      config.resolve = config.resolve || {}
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        'pino-pretty': false,
+        'pino-std-serializers': false,
+        'pino-abstract-transport': false,
+      }
+    }
+    return config
+  },
   async headers() {
     return [
       {

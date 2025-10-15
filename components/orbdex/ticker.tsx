@@ -59,7 +59,7 @@ export async function fetchBinanceBatch(symbols: string[]): Promise<any[]> {
 // ]
 
 const PAIRS = [
-  "SOLUSDT"
+  "SOLUSDC"
 ]
 
 export function BottomTicker() {

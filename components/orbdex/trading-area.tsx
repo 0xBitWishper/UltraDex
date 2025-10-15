@@ -10,12 +10,12 @@ type Interval = "1m" | "5m" | "15m" | "1h" | "4h" | "1d"
 
 export function TradingArea() {
   const [interval, setInterval] = useState<Interval>("1m")
-  const [symbol, setSymbol] = useState("PENGUUSDT")
+  const [symbol, setSymbol] = useState("PENGUUSDC")
   const [open, setOpen] = useState(false)
   const marketList = [
     { symbol: "BONKUSDT",  label: "BONK",  leverage: "100x", price: "$0.0000298", change: "+3.45%",  funding: "0.0100%",  volume: "$482,763,112.38",  oi: "$78,114,992.40",  icon: "🐶" },
   { symbol: "WIFUSDT",   label: "WIF",   leverage: "1500x", price: "$3.8400",    change: "+2.11%",  funding: "-0.0200%", volume: "$621,334,901.03",  oi: "$110,562,774.55", icon: "🧢" },
-  { symbol: "PENGUUSDT", label: "PENGU", leverage: "1500x", price: "$0.02450",   change: "-2.15%",  funding: "0.0150%",  volume: "$8,442,210.77",   oi: "$2,118,009.12",  icon: "🐧" },
+  { symbol: "PENGUUSDC", label: "PENGU", leverage: "1500x", price: "$0.02450",   change: "-2.15%",  funding: "0.0150%",  volume: "$8,442,210.77",   oi: "$2,118,009.12",  icon: "🐧" },
   { symbol: "TRUMPUSDT", label: "TRUMP", leverage: "1500x",  price: "$0.8120",    change: "-1.23%",  funding: "0.0080%",  volume: "$154,770,334.61",  oi: "$44,902,118.33",  icon: "🇺🇸" },
   { symbol: "SOLUSDT",   label: "SOL",   leverage: "1500x",  price: "$21.840",    change: "+1.23%",  funding: "0.0100%",  volume: "$1,234,567,890.12", oi: "$123,456,789.01",  icon: "🪐" },
   { symbol: "POPCATUSDT",label: "POPCAT", leverage: "100x", price: "$0.01490",   change: "+4.02%",  funding: "0.0090%",  volume: "$73,551,209.33",   oi: "$21,445,880.55",  icon: "🐱" },

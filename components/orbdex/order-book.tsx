@@ -1,8 +1,7 @@
 "use client"
 import { useEffect, useRef, useState, useMemo } from "react"
 
-const SYMBOLS = ["PENGUUSDT"
-];
+const symbols = ["PENGUUSDC","SOLUSDC"]
 
 type Row = { price: number; size: number; total: number }
 type Trade = { price: number; qty: number; side: "buy" | "sell"; time: number }
@@ -104,21 +103,28 @@ function DepthChart({ asks, bids }: { asks: { price: number; size: number }[]; b
   );
 }
 
-export function OrderBook() {
-  const [symbol, setSymbol] = useState<string>("btcusdt")
+export function OrderBook({ symbol: initialSymbol }: { symbol: string }) {
+  // Normalisasi simbol ke huruf besar agar pengecekan konsisten
+  const [symbol, setSymbol] = useState<string>(initialSymbol?.toUpperCase?.() ?? initialSymbol)
   const [bids, setBids] = useState<Row[]>([])
   const [asks, setAsks] = useState<Row[]>([])
   const [activeTab, setActiveTab] = useState<"orderbook" | "trades" | "depth">(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem('orderbookTab') as "orderbook" | "trades" | "depth") || "orderbook";
+      const tab = localStorage.getItem('orderbookTab') as "orderbook" | "trades" | "depth" | null;
+      if (tab === 'orderbook' || tab === 'trades' || tab === 'depth') return tab;
     }
     return "orderbook";
   });
+
+  // Sync tab state with localStorage only on client
+  // Remove tab sync effect, now handled in initial state
   const [trades, setTrades] = useState<Trade[]>([])
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
-    // Animate dummy orderbook for all pairs
+    // Jalankan dummy orderbook hanya untuk simbol custom yang tidak ada di Binance
+    if (symbol?.toUpperCase() !== "PENGUUSDC") return;
+    // Animate dummy orderbook
     let interval: NodeJS.Timeout;
     const genDummy = () => {
       const basePrice = 0.02450 + Math.random() * 0.00010;
@@ -145,42 +151,116 @@ export function OrderBook() {
   }, [symbol])
 
   useEffect(() => {
+    // Hindari koneksi untuk simbol custom agar tidak error (mis. PENGUUSDC)
+    if (symbol?.toUpperCase() === "PENGUUSDC") {
+      if (wsRef.current) {
+        try { wsRef.current.close() } catch {}
+        wsRef.current = null
+      }
+      return;
+    }
+    // Pastikan simbol dalam huruf kecil sesuai aturan Binance
+    // Pastikan simbol dalam huruf kecil sesuai aturan Binance
     const s = symbol.toLowerCase()
-    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${s}@depth@100ms`)
-    wsRef.current = ws
-    let lastBids: [string, string][] = []
-    let lastAsks: [string, string][] = []
-    ws.onmessage = (ev) => {
-      const d = JSON.parse(ev.data)
-      if (d.b) lastBids = d.b as [string, string][]
-      if (d.a) lastAsks = d.a as [string, string][]
-      setBids(parseLevels(lastBids, VISIBLE_ROWS, true))
-      setAsks(parseLevels(lastAsks, VISIBLE_ROWS, false))
-    }
-    return () => {
-      ws.close()
-    }
-  }, [symbol])
 
-  useEffect(() => {
-    const s = symbol.toLowerCase()
-    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${s}@trade`)
-    ws.onmessage = (ev) => {
-      const d = JSON.parse(ev.data)
-      const price = Number.parseFloat(d.p)
-      const qty = Number.parseFloat(d.q)
-      const side: "buy" | "sell" = d.m ? "sell" : "buy" // maker is sell
-      setTrades((prev) => {
-        const next = [{ price, qty, side, time: d.T as number }, ...prev]
-        return next.slice(0, VISIBLE_ROWS)
-      })
+    // Opsi yang lebih stabil: open base /ws lalu SUBSCRIBE ke beberapa stream
+    // Menghindari masalah cache/stale chunk yang mungkin masih memuat path /ws/<a>/<b>
+    const wsUrl = `wss://stream.binance.com:9443/ws`
+    
+    // Selalu tutup koneksi sebelumnya sebelum membuat yang baru
+    if (wsRef.current) {
+      wsRef.current.close()
     }
-    return () => ws.close()
-  }, [symbol])
+
+    // Debug: log URL agar mudah verifikasi di console browser
+    if (typeof window !== 'undefined') {
+      try { console.info('[OrderBook] opening WebSocket:', wsUrl) } catch {}
+    }
+    const ws = new WebSocket(wsUrl)
+    wsRef.current = ws
+
+    ws.onopen = () => {
+      try { console.debug('[OrderBook] WebSocket open:', s) } catch {}
+      // Subscribe ke depth dan trade sekaligus
+      const sub = {
+        method: 'SUBSCRIBE',
+        params: [ `${s}@depth@100ms`, `${s}@trade` ],
+        id: Date.now()
+      } as const
+      try { ws.send(JSON.stringify(sub)) } catch {}
+    };
+
+    ws.onmessage = (ev) => {
+      const message = JSON.parse(ev.data);
+      // Handle multi-stream and single-stream messages safely
+      if (message && typeof message === 'object') {
+        if (typeof message.stream === 'string') {
+          if (message.stream.includes('@depth')) {
+            const { b, a } = message.data;
+            if (b) setBids(parseLevels(b, VISIBLE_ROWS, true));
+            if (a) setAsks(parseLevels(a, VISIBLE_ROWS, false));
+            return;
+          }
+          if (message.stream.includes('@trade')) {
+            const d = message.data;
+            const newTrade: Trade = {
+              price: Number.parseFloat(d.p),
+              qty: Number.parseFloat(d.q),
+              side: d.m ? "sell" : "buy",
+              time: d.T,
+            };
+            setTrades((prev) => [newTrade, ...prev].slice(0, VISIBLE_ROWS));
+            return;
+          }
+        }
+        // Handle single-stream depth
+        if (message.b && message.a) {
+          setBids(parseLevels(message.b, VISIBLE_ROWS, true));
+          setAsks(parseLevels(message.a, VISIBLE_ROWS, false));
+          return;
+        }
+        // Handle single-stream trade
+        if (message.p && message.q && message.T !== undefined) {
+          const newTrade: Trade = {
+            price: Number.parseFloat(message.p),
+            qty: Number.parseFloat(message.q),
+            side: message.m ? "sell" : "buy",
+            time: message.T,
+          };
+          setTrades((prev) => [newTrade, ...prev].slice(0, VISIBLE_ROWS));
+          return;
+        }
+      }
+    };
+
+    ws.onerror = (err) => {
+      try { console.warn('[OrderBook] WebSocket error:', err) } catch {}
+    };
+    ws.onclose = (ev) => {
+      try { console.debug('[OrderBook] WebSocket closed:', s, ev.code, ev.reason) } catch {}
+    }
+
+    // Fungsi cleanup untuk menutup koneksi saat komponen unmount atau simbol berubah
+    return () => {
+      try {
+        if (ws.readyState === WebSocket.OPEN) {
+          const unsub = {
+            method: 'UNSUBSCRIBE',
+            params: [ `${s}@depth@100ms`, `${s}@trade` ],
+            id: Date.now()
+          }
+          try { ws.send(JSON.stringify(unsub)) } catch {}
+          ws.close()
+        }
+      } catch {}
+      wsRef.current = null;
+    };
+  }, [symbol]) // Efek ini akan berjalan kembali setiap kali 'symbol' berubah
+
+
 
   const asksFixed = useMemo(() => {
-    if (symbol === "PENGUUSDT") {
-      // Always fill to VISIBLE_ROWS with dummy data if needed
+    if (symbol === "PENGUUSDC" || symbol === "SOLUSDC") {      // Always fill to VISIBLE_ROWS with dummy data if needed
       const base = asks.slice(0, VISIBLE_ROWS)
       const pad = Math.max(0, VISIBLE_ROWS - base.length)
       const lastPrice = base.length > 0 ? base[base.length - 1].price : 0.02467
@@ -196,8 +276,7 @@ export function OrderBook() {
   }, [asks, symbol])
 
   const bidsFixed = useMemo(() => {
-    if (symbol === "PENGUUSDT") {
-      // Always fill to VISIBLE_ROWS with dummy data if needed
+    if (symbol === "PENGUUSDC" || symbol === "SOLUSDC") {      // Always fill to VISIBLE_ROWS with dummy data if needed
       const base = bids.slice(0, VISIBLE_ROWS)
       const pad = Math.max(0, VISIBLE_ROWS - base.length)
       const lastPrice = base.length > 0 ? base[base.length - 1].price : 0.02434
@@ -240,35 +319,29 @@ export function OrderBook() {
   return (
     <div className="grid h-full min-h-[320px] min-w-0 grid-rows-[auto_1fr_auto] overflow-hidden font-sans leading-tight text-[8px] sm:text-[9px] md:text-[10px] bg-white dark:bg-[#0F0F0F] border border-zinc-200 dark:border-zinc-800 rounded-sm p-2">
       {/* Symbol Selector */}
-      <div className="flex items-center justify-between mb-2">
-        <select
-          value={symbol}
-          onChange={e => setSymbol(e.target.value)}
-          className="px-2 py-1 rounded bg-[#232323] text-white text-xs font-semibold"
-        >
-          {["btcusdt", ...SYMBOLS].map(s => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
+      <div className="flex items-center justify-between mb-2"> 
         <div className="flex gap-1 bg-[#232323] rounded overflow-hidden p-1">
           {['Order book', 'Trades', 'Depth'].map((t) => {
-            const tabKey = t.toLowerCase().replace(' ', '') as 'orderbook' | 'trades' | 'depth'
-            const isActive = activeTab === tabKey
+            const tabKey = t.toLowerCase().replace(' ', '') as 'orderbook' | 'trades' | 'depth';
+            const isActive = activeTab === tabKey;
             return (
               <button
                 key={t}
                 className={`px-3 py-1 text-[10px] font-semibold rounded transition-all duration-150 ${isActive ? 'bg-[#181818] text-white' : 'bg-transparent text-gray-400'}`}
-                style={{ zIndex: 10, pointerEvents: 'auto' }}
+                style={{ zIndex: 10, pointerEvents: isActive ? 'none' : 'auto' }}
+                disabled={isActive}
                 onClick={() => {
-                  setActiveTab(tabKey);
-                  if (typeof window !== 'undefined') {
-                    localStorage.setItem('orderbookTab', tabKey);
+                  if (!isActive) {
+                    setActiveTab(tabKey);
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('orderbookTab', tabKey);
+                    }
                   }
                 }}
               >
                 {t}
               </button>
-            )
+            );
           })}
         </div>
       </div>
