@@ -14,8 +14,8 @@ It combines the power of blockchain technology, lightning-fast transactions, and
 - **Website:** [https://ultradex.fun](https://ultradex.fun)  
 - **GitHub Repository:** [https://github.com/0xBitWishper/UltraDex.git](https://github.com/0xBitWishper/UltraDex.git)   
 - **Community:** https://x.com/i/communities/1978036884443173163
-- **Documentation: ** Coming soon 
-- **API: ** Coming soon 
+- **Documentation**: Coming soon 
+- **API** : Coming soon 
 
 ---
 
