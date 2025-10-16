@@ -1,4 +1,8 @@
-# UltraDex Web3 – Decentralized Trading Platform
+![UltraDex Banner](https://pbs.twimg.com/community_banner_img/1978069191069757440/cYggZ7bE?format=jpg&name=small)
+
+
+
+# UltraDex
 
 **UltraDex** is a next-generation **Web3 Decentralized Exchange (DEX)** built for the **Solana ecosystem**, designed to empower traders with seamless spot and perpetual futures trading.  
 It combines the power of blockchain technology, lightning-fast transactions, and a user-friendly interface — giving full ownership and transparency to every user.
